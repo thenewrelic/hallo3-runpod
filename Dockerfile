@@ -34,8 +34,11 @@ RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Install RunPod SDK and additional dependencies
-# Pin huggingface_hub<1.0 to avoid compatibility issues with diffusers/transformers
-RUN pip install --no-cache-dir runpod "huggingface_hub>=0.23.2,<1.0" gradio insightface onnxruntime-gpu
+# IMPORTANT: Force downgrade huggingface_hub to <1.0 (required by some dependencies)
+# Also pin transformers/diffusers to versions compatible with huggingface_hub<1.0
+RUN pip install --no-cache-dir runpod gradio insightface onnxruntime-gpu && \
+    pip install --no-cache-dir "huggingface_hub>=0.23.2,<1.0" --force-reinstall && \
+    pip install --no-cache-dir "transformers>=4.41.0,<4.46.0" "diffusers>=0.29.0,<0.31.0" --force-reinstall
 
 # Note: Models (~70GB) are downloaded on first request to avoid build timeout
 # They will be cached in the container volume for subsequent requests
