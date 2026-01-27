@@ -33,8 +33,8 @@ RUN pip install --upgrade pip && \
     # Install remaining dependencies
     pip install --no-cache-dir -r requirements.txt
 
-# Install RunPod SDK and huggingface_hub
-RUN pip install --no-cache-dir runpod huggingface_hub
+# Install RunPod SDK, huggingface_hub, and gradio (required by hallo3.app)
+RUN pip install --no-cache-dir runpod huggingface_hub gradio insightface onnxruntime-gpu
 
 # Note: Models (~70GB) are downloaded on first request to avoid build timeout
 # They will be cached in the container volume for subsequent requests
