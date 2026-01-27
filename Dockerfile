@@ -1,29 +1,19 @@
 # Hallo3 RunPod Serverless Docker Image
-# Based on NVIDIA CUDA with Python 3.10
+# Optimized for fast builds - uses RunPod's pre-built PyTorch base image
 
-FROM nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Install additional system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.10 \
-    python3.10-venv \
-    python3-pip \
-    git \
     git-lfs \
     ffmpeg \
     libsm6 \
     libxext6 \
     libgl1-mesa-glx \
-    wget \
-    curl \
     && rm -rf /var/lib/apt/lists/*
-
-# Set Python 3.10 as default
-RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.10 1 && \
-    update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
 
 # Set working directory
 WORKDIR /workspace
@@ -31,20 +21,23 @@ WORKDIR /workspace
 # Clone Hallo3 repository
 RUN git clone https://github.com/fudan-generative-vision/hallo3.git
 
-# Install Python dependencies
+# Install Python dependencies (PyTorch already in base image, skip heavy packages)
 WORKDIR /workspace/hallo3
 RUN pip install --upgrade pip && \
-    # Fix pyav version issue - use compatible version
+    # Remove torch/torchvision from requirements (already installed in base image)
+    sed -i '/^torch==/d' requirements.txt && \
+    sed -i '/^torchvision==/d' requirements.txt && \
+    sed -i '/^nvidia-/d' requirements.txt && \
+    # Fix pyav version issue
     sed -i 's/pyav==14.0.1/av>=11.0.0/' requirements.txt && \
+    # Install remaining dependencies
     pip install --no-cache-dir -r requirements.txt
 
-# Install RunPod SDK
-RUN pip install --no-cache-dir runpod
+# Install RunPod SDK and huggingface_hub
+RUN pip install --no-cache-dir runpod huggingface_hub
 
-# Download pretrained models from HuggingFace
-# This will take a while (~70GB of models)
-RUN pip install huggingface_hub && \
-    huggingface-cli download fudan-generative-ai/hallo3 --local-dir ./pretrained_models
+# Note: Models (~70GB) are downloaded on first request to avoid build timeout
+# They will be cached in the container volume for subsequent requests
 
 # Copy handler script
 COPY handler.py /workspace/handler.py
