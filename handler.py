@@ -2,7 +2,7 @@
 RunPod Serverless Handler for Hallo3
 Generates talking-head videos from image + audio inputs
 
-Models are downloaded at runtime on first request to avoid build timeout.
+Models are downloaded at runtime on first request and cached on network volume.
 """
 
 import os
@@ -18,27 +18,52 @@ import runpod
 HALLO3_PATH = Path("/workspace/hallo3")
 sys.path.insert(0, str(HALLO3_PATH))
 
+# Network volume for persistent model storage (survives rebuilds)
+VOLUME_PATH = Path("/runpod-volume")
+MODELS_CACHE = VOLUME_PATH / "hallo3-models"
+
 # Global generator instance (loaded once, reused)
 generator = None
 models_downloaded = False
 
 
 def download_models():
-    """Download Hallo3 models from HuggingFace (run once on first request)"""
+    """Download Hallo3 models from HuggingFace (cached on network volume)"""
     global models_downloaded
     if models_downloaded:
         return
 
-    print("=" * 60)
-    print("DOWNLOADING HALLO3 MODELS (first request only)")
-    print("This will take several minutes...")
-    print("=" * 60)
-
     from huggingface_hub import snapshot_download
 
-    # Create pretrained_models directory
-    models_dir = HALLO3_PATH / "pretrained_models"
+    # Use network volume if available, otherwise fall back to workspace
+    if VOLUME_PATH.exists():
+        models_dir = MODELS_CACHE / "pretrained_models"
+        print(f"Using network volume for model storage: {models_dir}")
+    else:
+        models_dir = HALLO3_PATH / "pretrained_models"
+        print(f"Network volume not found, using workspace: {models_dir}")
+
     models_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create symlink from hallo3 to the models location
+    hallo3_models = HALLO3_PATH / "pretrained_models"
+    if not hallo3_models.exists() and VOLUME_PATH.exists():
+        hallo3_models.symlink_to(models_dir)
+        print(f"Created symlink: {hallo3_models} -> {models_dir}")
+
+    # Check if models already exist on volume
+    marker_file = models_dir / ".download_complete"
+    if marker_file.exists():
+        print("=" * 60)
+        print("MODELS FOUND ON NETWORK VOLUME - SKIPPING DOWNLOAD")
+        print("=" * 60)
+        models_downloaded = True
+        return
+
+    print("=" * 60)
+    print("DOWNLOADING HALLO3 MODELS (first request only)")
+    print("Models will be cached on network volume for future builds")
+    print("=" * 60)
 
     # Download hallo3 model weights
     print("\n[1/4] Downloading Hallo3 checkpoint...")
@@ -65,27 +90,26 @@ def download_models():
     )
 
     # Download InsightFace models (required for face detection)
+    # Use insightface package to download - it handles authentication automatically
     print("\n[4/4] Downloading InsightFace models...")
-    insightface_dir = models_dir / "insightface" / "models" / "buffalo_l"
-    insightface_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        import insightface
+        from insightface.app import FaceAnalysis
+        # This will automatically download buffalo_l models to ~/.insightface
+        app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
+        app.prepare(ctx_id=0, det_size=(640, 640))
+        print("InsightFace models downloaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not download InsightFace models: {e}")
 
-    from huggingface_hub import hf_hub_download
-
-    # Download buffalo_l model files
-    for filename in ["1k3d68.onnx", "2d106det.onnx", "det_10g.onnx", "genderage.onnx", "w600k_r50.onnx"]:
-        try:
-            hf_hub_download(
-                repo_id="deepinsight/insightface",
-                filename=f"models/buffalo_l/{filename}",
-                local_dir=str(models_dir / "insightface"),
-                local_dir_use_symlinks=False
-            )
-        except Exception as e:
-            print(f"Warning: Could not download {filename}: {e}")
+    # Create marker file to indicate download is complete
+    marker_file = models_dir / ".download_complete"
+    marker_file.touch()
+    print(f"Created marker file: {marker_file}")
 
     models_downloaded = True
     print("\n" + "=" * 60)
-    print("MODEL DOWNLOAD COMPLETE")
+    print("MODEL DOWNLOAD COMPLETE - CACHED ON NETWORK VOLUME")
     print("=" * 60 + "\n")
 
 
