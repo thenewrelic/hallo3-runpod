@@ -34,6 +34,8 @@ RUN git clone https://github.com/fudan-generative-vision/hallo3.git
 # Install Python dependencies
 WORKDIR /workspace/hallo3
 RUN pip install --upgrade pip && \
+    # Fix pyav version issue - use compatible version
+    sed -i 's/pyav==14.0.1/av>=11.0.0/' requirements.txt && \
     pip install --no-cache-dir -r requirements.txt
 
 # Install RunPod SDK
