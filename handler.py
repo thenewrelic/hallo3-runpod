@@ -1,6 +1,8 @@
 """
 RunPod Serverless Handler for Hallo3
 Generates talking-head videos from image + audio inputs
+
+Models are downloaded at runtime on first request to avoid build timeout.
 """
 
 import os
@@ -18,6 +20,73 @@ sys.path.insert(0, str(HALLO3_PATH))
 
 # Global generator instance (loaded once, reused)
 generator = None
+models_downloaded = False
+
+
+def download_models():
+    """Download Hallo3 models from HuggingFace (run once on first request)"""
+    global models_downloaded
+    if models_downloaded:
+        return
+
+    print("=" * 60)
+    print("DOWNLOADING HALLO3 MODELS (first request only)")
+    print("This will take several minutes...")
+    print("=" * 60)
+
+    from huggingface_hub import snapshot_download
+
+    # Create pretrained_models directory
+    models_dir = HALLO3_PATH / "pretrained_models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+
+    # Download hallo3 model weights
+    print("\n[1/4] Downloading Hallo3 checkpoint...")
+    snapshot_download(
+        repo_id="fudan-generative-ai/hallo3",
+        local_dir=str(models_dir / "hallo3"),
+        local_dir_use_symlinks=False
+    )
+
+    # Download CogVideoX-5B (required for video generation)
+    print("\n[2/4] Downloading CogVideoX-5B...")
+    snapshot_download(
+        repo_id="THUDM/CogVideoX-5b",
+        local_dir=str(models_dir / "CogVideoX-5b"),
+        local_dir_use_symlinks=False
+    )
+
+    # Download Wav2Vec2 (required for audio processing)
+    print("\n[3/4] Downloading Wav2Vec2...")
+    snapshot_download(
+        repo_id="facebook/wav2vec2-base-960h",
+        local_dir=str(models_dir / "wav2vec2-base-960h"),
+        local_dir_use_symlinks=False
+    )
+
+    # Download InsightFace models (required for face detection)
+    print("\n[4/4] Downloading InsightFace models...")
+    insightface_dir = models_dir / "insightface" / "models" / "buffalo_l"
+    insightface_dir.mkdir(parents=True, exist_ok=True)
+
+    from huggingface_hub import hf_hub_download
+
+    # Download buffalo_l model files
+    for filename in ["1k3d68.onnx", "2d106det.onnx", "det_10g.onnx", "genderage.onnx", "w600k_r50.onnx"]:
+        try:
+            hf_hub_download(
+                repo_id="deepinsight/insightface",
+                filename=f"models/buffalo_l/{filename}",
+                local_dir=str(models_dir / "insightface"),
+                local_dir_use_symlinks=False
+            )
+        except Exception as e:
+            print(f"Warning: Could not download {filename}: {e}")
+
+    models_downloaded = True
+    print("\n" + "=" * 60)
+    print("MODEL DOWNLOAD COMPLETE")
+    print("=" * 60 + "\n")
 
 
 def load_generator():
@@ -25,6 +94,9 @@ def load_generator():
     global generator
     if generator is not None:
         return generator
+
+    # Download models first (if not already done)
+    download_models()
 
     print("Loading Hallo3 VideoGenerator...")
 
