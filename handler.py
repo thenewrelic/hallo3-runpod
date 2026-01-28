@@ -14,9 +14,11 @@ from pathlib import Path
 
 import runpod
 
-# Add hallo3 to path
+# Add hallo3 paths for imports
 HALLO3_PATH = Path("/workspace/hallo3")
+HALLO3_MODULE_PATH = HALLO3_PATH / "hallo3"  # Where diffusion_video.py lives
 sys.path.insert(0, str(HALLO3_PATH))
+sys.path.insert(0, str(HALLO3_MODULE_PATH))  # Add hallo3/hallo3 for local imports like diffusion_video
 
 # Network volume for persistent model storage (survives rebuilds)
 VOLUME_PATH = Path("/runpod-volume")
@@ -124,10 +126,10 @@ def load_generator():
 
     print("Loading Hallo3 VideoGenerator...")
 
-    # Change to hallo3 directory for proper config loading
-    os.chdir(HALLO3_PATH)
+    # Change to hallo3/hallo3 directory for proper imports (diffusion_video, etc.)
+    os.chdir(HALLO3_MODULE_PATH)
 
-    from hallo3.app import VideoGenerator
+    from app import VideoGenerator
     generator = VideoGenerator()
 
     print("Hallo3 VideoGenerator loaded successfully")

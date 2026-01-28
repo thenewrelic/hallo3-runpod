@@ -43,8 +43,9 @@ RUN pip install --no-cache-dir runpod gradio insightface onnxruntime-gpu && \
 # Note: Models (~70GB) are downloaded on first request to avoid build timeout
 # They will be cached in the container volume for subsequent requests
 
-# Copy handler script
+# Copy handler script and test script
 COPY handler.py /workspace/handler.py
+COPY test_imports.py /workspace/test_imports.py
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
