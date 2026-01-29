@@ -1,5 +1,5 @@
 """
-RunPod Serverless Handler for Hallo3
+RunPod Serverless Handler for Hallo3 - DEV/TEST VERSION
 Generates talking-head videos from image + audio inputs
 
 Models are downloaded at runtime on first request and cached on network volume.
@@ -126,8 +126,10 @@ def load_generator():
 
     print("Loading Hallo3 VideoGenerator...")
 
-    # Change to hallo3/hallo3 directory for proper imports (diffusion_video, etc.)
-    os.chdir(HALLO3_MODULE_PATH)
+    # Change to hallo3 root directory (where ./configs/ lives)
+    # The app.py uses relative paths like "./configs/cogvideox_5b_i2v_s2.yaml"
+    os.chdir(HALLO3_PATH)
+    print(f"Working directory: {os.getcwd()}")
 
     from app import VideoGenerator
     generator = VideoGenerator()
