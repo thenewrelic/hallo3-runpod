@@ -47,7 +47,7 @@ def download_models():
 
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create symlink from hallo3 to the models location
+    # Create symlink from hallo3/pretrained_models to the models location
     hallo3_models = HALLO3_PATH / "pretrained_models"
     if not hallo3_models.exists() and VOLUME_PATH.exists():
         hallo3_models.symlink_to(models_dir)
@@ -65,47 +65,28 @@ def download_models():
     print("=" * 60)
     print("DOWNLOADING HALLO3 MODELS (first request only)")
     print("Models will be cached on network volume for future builds")
+    print("This may take 10-20 minutes (~70GB of models)")
     print("=" * 60)
 
-    # Download hallo3 model weights
-    print("\n[1/4] Downloading Hallo3 checkpoint...")
+    # The fudan-generative-ai/hallo3 HuggingFace repo contains ALL required models:
+    # - hallo3/ (main checkpoint)
+    # - cogvideox-5b-i2v-sat/ (video VAE)
+    # - t5-v1_1-xxl/ (text encoder)
+    # - wav2vec/ (audio encoder)
+    # - face_analysis/ (InsightFace models)
+    # - audio_separator/ (vocal separation)
+    #
+    # Download directly to pretrained_models so paths match config expectations
+    print("\nDownloading all Hallo3 models from fudan-generative-ai/hallo3...")
     snapshot_download(
         repo_id="fudan-generative-ai/hallo3",
-        local_dir=str(models_dir / "hallo3"),
+        local_dir=str(models_dir),
         local_dir_use_symlinks=False
     )
 
-    # Download CogVideoX-5B (required for video generation)
-    print("\n[2/4] Downloading CogVideoX-5B...")
-    snapshot_download(
-        repo_id="THUDM/CogVideoX-5b",
-        local_dir=str(models_dir / "CogVideoX-5b"),
-        local_dir_use_symlinks=False
-    )
-
-    # Download Wav2Vec2 (required for audio processing)
-    print("\n[3/4] Downloading Wav2Vec2...")
-    snapshot_download(
-        repo_id="facebook/wav2vec2-base-960h",
-        local_dir=str(models_dir / "wav2vec2-base-960h"),
-        local_dir_use_symlinks=False
-    )
-
-    # Download InsightFace models (required for face detection)
-    # Use insightface package to download - it handles authentication automatically
-    print("\n[4/4] Downloading InsightFace models...")
-    try:
-        import insightface
-        from insightface.app import FaceAnalysis
-        # This will automatically download buffalo_l models to ~/.insightface
-        app = FaceAnalysis(name='buffalo_l', providers=['CPUExecutionProvider'])
-        app.prepare(ctx_id=0, det_size=(640, 640))
-        print("InsightFace models downloaded successfully")
-    except Exception as e:
-        print(f"Warning: Could not download InsightFace models: {e}")
+    print("All models downloaded successfully")
 
     # Create marker file to indicate download is complete
-    marker_file = models_dir / ".download_complete"
     marker_file.touch()
     print(f"Created marker file: {marker_file}")
 
