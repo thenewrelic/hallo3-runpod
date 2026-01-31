@@ -40,6 +40,9 @@ RUN pip install --no-cache-dir runpod gradio insightface onnxruntime-gpu && \
     pip install --no-cache-dir "huggingface_hub>=0.23.2,<1.0" --force-reinstall && \
     pip install --no-cache-dir "transformers>=4.41.0,<4.46.0" "diffusers>=0.29.0,<0.31.0" --force-reinstall
 
+# MUST be last: Pin NumPy<2.0 for Numba compatibility (audio processing)
+RUN pip install --no-cache-dir "numpy<2.0" --force-reinstall
+
 # Note: Models (~70GB) are downloaded on first request to avoid build timeout
 # They will be cached in the container volume for subsequent requests
 

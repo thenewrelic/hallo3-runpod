@@ -1,5 +1,5 @@
 """
-RunPod Serverless Handler for Hallo3 - DEV/TEST VERSION
+RunPod Serverless Handler for Hallo3
 Generates talking-head videos from image + audio inputs
 
 Models are downloaded at runtime on first request and cached on network volume.
